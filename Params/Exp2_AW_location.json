@@ -1,0 +1,2 @@
+{"coordinate":"cartesian",
+    "location":"np.array([0.5*(rtr_dims['outer_radius']+rtr_dims['inner_radius']),0,rtr_dims['height']/2+D_wheel_sensor_Exp2])"}
