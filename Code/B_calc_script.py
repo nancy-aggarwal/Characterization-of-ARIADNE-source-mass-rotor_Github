@@ -21,11 +21,18 @@ npfuncs['cosdeg'] = lambda thetadeg: np.cos(np.pi*thetadeg/180)
 #**************************************************************************
 #                                Function List
 #**************************************************************************
+#                                 signif
+#                             FieldAtAnyLocation
 #                          TopFunctionOneExpAnyFreq
-#                                  calc_chi
-#                                   CalcB
 #                                   Parser
+#                                  calc_chi
+#                               PlotCalcField
 #                               PlotEverything
+#                                GetAxisNumber
+#                                   CalcB
+#                          PlotSetupAndMakeLocation
+#                             PlotCalcOnlyFields
+#                                 PlotFields
 #                                CheckValid
 #                                GetCartesian
 #                                 GetPolar
@@ -34,9 +41,138 @@ npfuncs['cosdeg'] = lambda thetadeg: np.cos(np.pi*thetadeg/180)
 
 #``````````````````````````````````````````````````````````````````````````
 #``````````````````````````````````````````````````````````````````````````
+#                                signif
+#``````````````````````````````````````````````````````````````````````````
+#``````````````````````````````````````````````````````````````````````````
+
+
+def signif(x, p):
+    x = np.asarray(x)
+    x_positive = np.where(np.isfinite(x) & (x != 0), np.abs(x), 10**(p-1))
+    mags = 10 ** (p - 1 - np.floor(np.log10(x_positive)))
+    return np.round(x * mags) / mags
+
+
+#``````````````````````````````````````````````````````````````````````````
+#``````````````````````````````````````````````````````````````````````````
+#                         FieldAtAnyLocation
+#``````````````````````````````````````````````````````````````````````````
+#``````````````````````````````````````````````````````````````````````````
+
+def FieldAtAnyLocation(calculation_parameters_in,settings):
+    """
+    This is the top level function
+
+    settings:
+        * 'experiment settings':
+            - 'rotor dimensions'
+            - 'sensor locations'
+                + '3He'
+                    ~ 'location'
+            - 'bar location' (optional)
+        * 'data'
+            - 'theta'
+        * 'optimization settings'
+            - 'number of sources'
+            - 'optimize bar location'
+            - 'location dimensions'
+            - 'moment dimensions'
+            - 'location coordinate system'
+            - 'moment coordinate system'
+            - 'significant figures'
+        * 'plot settings'
+            - 'plot'
+            - 'saveplot'
+            - 'figname'
+            - 'memo'
+            - 'doubleplot'
+            - 'print sigfigs'
+    Enter all lengths in mm, all angles in degrees, all magnetic moments in
+     1e-11 Am^2, all fields and DC offsets in pT
+
+    """
+    # print('In top level function')
+    # calculation_parameters = list(np.around(np.array(calculation_parameters_in),2))
+    calculation_parameters = list(signif(calculation_parameters_in,settings['optimization settings']['significant figures']))
+    # optimization_parameters = optimization_parameters_in
+    calculation_dict = deepcopy(settings['experiment settings'])
+    data_dict         = {}
+    data_dict['theta'] = deepcopy(settings['data']['theta'])
+    data_dict['calculated field'] = {}
+
+    #========================================================================
+    # Call parser
+    #========================================================================
+    ParseSuccess = Parser(calculation_parameters,settings,calculation_dict)
+    """ Now calculation_dict should have following keywords:
+        * 'number of sources'
+        * 'rotor dimensions'
+        * 'sensor locations'
+            - 'AW'
+                + 'location'
+        * 'source locations'
+        * 'source moments'
+        * 'DC shift'
+                + 'AW'
+                    ~ 'Z'
+        * 'bar location'
+    """
+    if ParseSuccess!=1:
+        if 'print chi' not in settings['optimization settings'] or settings['optimization settings']['print chi']:
+            print('Parsing was not successful, errorcode {}'.format(ParseSuccess))
+        return 1000
+
+    #=========================================================================
+    # Calculate field
+    #=========================================================================
+    for sensorname in calculation_dict['sensor locations']:
+        sensor_loc = calculation_dict['sensor locations'][sensorname]
+        data_dict['calculated field'][sensorname] = {}
+        B_AC_3_axis = 0
+        # print(sensor_loc)
+        for i_source in range(calculation_dict['number of sources']):
+            source_m = calculation_dict['source moments'][i_source]
+            source_loc = calculation_dict['source locations'][i_source]
+            # print('Calculating field for sensor {}, source {}'\
+            #  .format(sensorname,i_source))
+            # print(source_m)
+            theta_rotation_deg = data_dict['theta']+\
+                calculation_dict['bar location']
+            B_i_3axis = CalcB(source_loc,source_m,sensor_loc,theta_rotation_deg)
+            # CalcB takes locations in millimeters, degrees;
+            # moments in 1e-11 Am^2
+            # returns fields in picoTesla
+            B_AC_3_axis += B_i_3axis
+        for axis in ['X','Y','Z']:
+            axnum = GetAxisNumber(axis)
+            data_dict['calculated field'][sensorname][axis] = B_AC_3_axis[axnum,:]
+    
+    
+    #=========================================================================
+    # Call PlotCalcField
+    #=========================================================================
+    if 'plot settings' in settings:
+        if settings['plot settings']['plot']:
+            [fig,side_ax,front_ax,data_ax]=\
+             PlotCalcField(calculation_dict,data_dict,settings['plot settings'])
+            if 'saveplot' in settings['plot settings']:
+                    if settings['plot settings']['saveplot']:
+                        fig.savefig(settings['plot settings']['figname'],bbox_inches='tight',dpi = settings['plot settings']['dpi'])
+
+    if 'save settings' in settings:
+        if 'save fit data' in settings['save settings']:
+            if settings['save settings']['save fit data']:
+                with open(settings['save settings']['fit data filename'],'wb') as file_obj:
+                    pickle.dump(data_dict,file_obj)
+    return data_dict['calculated field']
+
+
+#``````````````````````````````````````````````````````````````````````````
+#``````````````````````````````````````````````````````````````````````````
 #                         TopFunctionOneExpAnyFreq
 #``````````````````````````````````````````````````````````````````````````
 #``````````````````````````````````````````````````````````````````````````
+
 
 def TopFunctionOneExpAnyFreq(optimization_parameters_in,settings):
     """
@@ -61,18 +197,24 @@ def TopFunctionOneExpAnyFreq(optimization_parameters_in,settings):
             - 'moment dimensions'
             - 'location coordinate system'
             - 'moment coordinate system'
+            - 'significant figures'
         * 'plot settings'
             - 'plot'
             - 'saveplot'
             - 'figname'
             - 'memo'
             - 'doubleplot'
+            - 'print sigfigs'
     Enter all lengths in mm, all angles in degrees, all magnetic moments in
      1e-11 Am^2, all fields and DC offsets in pT
 
     """
     # print('In top level function')
-    optimization_parameters = list(np.around(np.array(optimization_parameters_in),2))
+    # optimization_parameters = list(np.around(np.array(optimization_parameters_in),2))
+
+    optimization_parameters = list(signif(optimization_parameters_in,settings['optimization settings']['significant figures']))
+    # print(optimization_parameters)
+
     # optimization_parameters = optimization_parameters_in
     optimization_dict = deepcopy(settings['experiment settings'])
     data_dict         = {}
@@ -105,7 +247,10 @@ def TopFunctionOneExpAnyFreq(optimization_parameters_in,settings):
     #=========================================================================
     # Calculate chi
     #=========================================================================
-    chi_sq_red = calc_chi(optimization_dict,data_dict)
+    chi_sq_red,n_points_total = calc_chi(optimization_dict,data_dict)
+    if 'print' in settings['optimization settings']:
+        if settings['optimization settings']['print']:
+            print("Total number of points are {}".format(n_points_total))
     # chi_sq_round = round(chi_sq_red,6)
     chi_sq_round = chi_sq_red
     """
@@ -188,12 +333,13 @@ def Parser(array_to_parse,settings,optimization_dict):
     #=========================================================================
     # DC shifts
     #=========================================================================
-
+    
     if ('optimize DC shifts' in settings['optimization settings']):
         if settings['optimization settings']['optimize DC shifts']:
             n_DC = 0
             optimization_dict['DC shift']={}
             sensornames = list(settings['data']['B'].keys())
+            # sensornames = list(optimization_dict['sensor locations'].keys())
             sensornames.sort(reverse=True)
             n_sensor = 0
             DC_arr = []
@@ -424,11 +570,83 @@ def calc_chi(optimization_dict,data_dict):
             chi_sq_total +=chi_sq_this_axis
             n_points_total += np.size(chi_sq_array)
     chi_sq_reduced = chi_sq_total/(n_points_total**2)
-    print("Total number of points are {}".format(n_points_total))
     if 'chi tolerance' in optimization_dict:
         chi_sq_reduced = np.around(chi_sq_reduced,decimals = optimization_dict['chi tolerance'])
     data_dict['reduced chi squared'] = chi_sq_reduced
-    return chi_sq_reduced
+    return chi_sq_reduced,n_points_total
+
+#`````````````````````````````````````````````````````````````````````````````
+#`````````````````````````````````````````````````````````````````````````````
+#                                PlotCalcField
+#`````````````````````````````````````````````````````````````````````````````
+#`````````````````````````````````````````````````````````````````````````````
+def PlotCalcField(calculation_dict,data_dict,plot_settings):
+    # Make textstring to print about dipole locations
+
+    n_sources = calculation_dict['number of sources']
+
+    
+    # textstring = """                                    
+
+    # Dipole #                         Position               \
+    #                      Moment"""
+    # for i_source in range(n_sources):
+    #     source_loc = deepcopy(
+    #      calculation_dict['source locations'][i_source])
+    #     source_loc_polar = GetPolar(source_loc)
+    #     source_m = calculation_dict['source moments'][i_source]
+    # #   source_m_polar = GetPolar(source_m)
+    #     strloop = """
+    #     %0.0f             (%0.2f mm, %0.1f°, %0.2f mm)\
+    #        (%0.1f,%0.1f,%0.1f) $\\times$ 1e-11 A$\mathrm{m}^2$  """\
+    #     %(i_source+1,*source_loc_polar['location'],*source_m['moment'])
+    #     textstring = textstring+strloop
+    #     textstringE = """ $E = $ %0.3e """\
+    # %(data_dict['reduced chi squared'])
+
+    textstringD = """ Dipole #                         Position               \
+                         Moment"""
+    for i_source in range(n_sources):
+        source_loc = deepcopy(
+         calculation_dict['source locations'][i_source])
+        source_loc_polar = GetPolar(source_loc)
+        source_m = calculation_dict['source moments'][i_source]
+    #   source_m_polar = GetPolar(source_m)
+        fitparamslistsigfigs = signif([i_source+1]+source_loc_polar['location']+source_m['moment'],plot_settings['print sigfigs'])
+        fitparamslist = []
+        for number in fitparamslistsigfigs:
+            if int(number) == float(number):
+               number = int(number)
+            else:
+               number = float(number)
+            fitparamslist.append(number)
+        # source_m_polar = GetPolar(source_m)
+        strloop = """
+        {}             ({} mm, {}°, {} mm)\
+           ({},{},{}) $\\times$ $10^{{-11}}$ Am$^2$  """\
+        .format(*fitparamslist)
+        textstringD = textstringD+strloop
+    
+    [fig,side_ax,front_ax,data_ax_spec] = PlotSetupAndMakeLocation(calculation_dict)
+    # fig.text(0.1,-0.32,textstring)
+    # fig.text(0.4,-0.3,textstring, 
+    #     bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
+    if plot_settings['print sigfigs']<3:
+        fig.text(0.57,-0.17,textstringD, 
+            bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
+    else:
+            fig.text(0.46,-0.3,textstringD, 
+                bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
+    # fig.text(0.4,-0.32,textstringD, 
+    #     bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
+    if 'memo' in plot_settings:
+            titlestring = plot_settings['memo']    
+            fig.suptitle(titlestring,fontsize=16,weight='bold')
+    PlotCalcOnlyFields(data_dict,fig,data_ax_spec,plot_settings)
+    # fig.tight_layout()
+
+
+    return fig,side_ax,front_ax,data_ax_spec
 
 #`````````````````````````````````````````````````````````````````````````````
 #`````````````````````````````````````````````````````````````````````````````
@@ -440,29 +658,65 @@ def PlotEverything(optimization_dict,data_dict,plot_settings):
 
     n_sources = optimization_dict['number of sources']
 
-    textstring = """                                      $E = $ %0.3e
+    # textstring = """                                      $E = $ %0.3e
 
-    Dipole #                         Position               \
-                         Moment"""\
-    %(data_dict['reduced chi squared'])
-    if 'memo' in plot_settings:
-            titlestring = plot_settings['memo']
+    # Dipole #                         Position               \
+    #                      Moment"""\
+    # %(data_dict['reduced chi squared'])
+    # for i_source in range(n_sources):
+    #     source_loc = deepcopy(
+    #      optimization_dict['source locations'][i_source])
+    #     source_loc_polar = GetPolar(source_loc)
+    #     source_m = optimization_dict['source moments'][i_source]
+    # #   source_m_polar = GetPolar(source_m)
+    #     strloop = """
+    #     %0.0f             (%0.2f mm, %0.1f°, %0.2f mm)\
+    #        (%0.1f,%0.1f,%0.1f) $\\times$ 1e-11 A$\mathrm{m}^2$  """\
+    #     %(i_source+1,*source_loc_polar['location'],*source_m['moment'])
+    #     textstring = textstring+strloop
+
+
+    textstringE = """E$^\dagger$ = {} """.format(signif(data_dict['reduced chi squared'],plot_settings['print sigfigs']))
+    textstringD = """ Dipole #                        Position$^\dagger$               \
+                  Moment$^\dagger$ """
     for i_source in range(n_sources):
         source_loc = deepcopy(
          optimization_dict['source locations'][i_source])
         source_loc_polar = GetPolar(source_loc)
         source_m = optimization_dict['source moments'][i_source]
-    #   source_m_polar = GetPolar(source_m)
+        fitparamslistsigfigs = signif([i_source+1]+source_loc_polar['location']+source_m['moment'],plot_settings['print sigfigs'])
+        fitparamslist = []
+        for number in fitparamslistsigfigs:
+            if int(number) == float(number):
+               number = int(number)
+            else:
+               number = float(number)
+            fitparamslist.append(number)
+        # source_m_polar = GetPolar(source_m)
         strloop = """
-        %0.0f             (%0.2f mm, %0.1f°, %0.2f mm)\
-           (%0.1f,%0.1f,%0.1f) $\\times$ 1e-11 A$\mathrm{m}^2$  """\
-        %(i_source+1,*source_loc_polar['location'],*source_m['moment'])
-        textstring = textstring+strloop
+        {}             ({} mm, {}°, {} mm)\
+           ({},{},{}) $\\times$ $10^{{-11}}$ Am$^2$  """\
+        .format(*fitparamslist)
+        textstringD = textstringD+strloop
+
 
     [fig,side_ax,front_ax,data_ax_spec] = PlotSetupAndMakeLocation(optimization_dict)
     # fig.text(0.1,-0.32,textstring)
-    fig.text(0.4,-0.3,textstring)
-    fig.suptitle(titlestring,fontsize=16,weight='bold')
+    # fig.text(0.4,-0.3,textstring, 
+    #     bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
+    if plot_settings['print sigfigs']<3:
+        fig.text(0.41,-0.17,textstringE, 
+            bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
+        fig.text(0.57,-0.17,textstringD, 
+            bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
+    else:
+            fig.text(0.37,-0.17,textstringE, 
+                bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
+            fig.text(0.46,-0.3,textstringD, 
+                bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
+    if 'memo' in plot_settings:
+        titlestring = plot_settings['memo']
+        fig.suptitle(titlestring,fontsize=16,weight='bold')
     PlotFields(data_dict,fig,data_ax_spec,plot_settings)
     # fig.tight_layout()
 
@@ -675,7 +929,9 @@ def PlotSetupAndMakeLocation(input_dict):
     # colors = [cmap(i_col) for i_col in np.linspace(0, 1, numberofdots)]
 
     # colors = ['magenta','purple','red','violet','tomato', 'darkviolet']
-    colors = plt.get_cmap('Accent')
+    # n_sensors = len(input_dict['sensor locations'].keys())
+    # colors = plt.get_cmap('tab10',input_dict['number of sensors'])
+    colors = plt.get_cmap('Set1')
     i_col = 0
     for sensor in input_dict['sensor locations']:
         sensor_cartesian = GetCartesian(input_dict['sensor locations'][sensor])
@@ -683,20 +939,23 @@ def PlotSetupAndMakeLocation(input_dict):
          sensor_cartesian['location'][1],label = 'sensor {}'.format(sensor),
          # color = colors[i_col]
          color = colors(i_col)
-         ,marker = 'o',s = 80)
+         ,alpha = 0.6
+         ,marker = 'o',s = 60)
         side_view.scatter(sensor_cartesian['location'][2],
          sensor_cartesian['location'][1]
          # ,color = colors[i_col]
          ,color = colors(i_col)
+         ,alpha = 0.6
          ,marker='o',
-         s=80)
+         s=60)
         i_col +=1
 
     # colors = ['yellowgreen','olivedrab','darkgoldenrod','lime','olive']
     i_col = 0
     # cmap = plt.get_cmap('jet')
     # colors = [cmap(i_col) for i_col in np.linspace(0, 1, input_dict['number of sources'])]
-    colors = plt.get_cmap('Dark2')
+    # colors = plt.get_cmap('Dark2',input_dict['number of sources'])
+    colors = plt.get_cmap('Accent')
     for i_source in range(input_dict['number of sources']):
         source_polar     = GetPolar(
          input_dict['source locations'][i_source])
@@ -717,11 +976,111 @@ def PlotSetupAndMakeLocation(input_dict):
         i_col +=1
 
 
-    front_view.legend(loc='upper left',bbox_to_anchor=(-0.5,-0.2),ncol=2)
+    front_view.legend(loc='upper left',bbox_to_anchor=(-0.5,-0.155),ncol=2)
     front_view.axis('equal')
     side_view.axis('equal')
 
     return fig,side_view,front_view,fields_spec
+
+#..........................................................................
+#``````````````````````````````````````````````````````````````````````````
+#                                PlotCalcOnlyFields
+#..........................................................................
+#``````````````````````````````````````````````````````````````````````````
+def PlotCalcOnlyFields(input_dict,fig,data_spec,plot_settings):
+
+    # colors = ['red','green','blue','magenta','orange','brown','pink','olive']
+
+
+    [blah,data_plots_space_spec] = gridspec.GridSpecFromSubplotSpec(nrows=1,ncols=2
+     ,subplot_spec=data_spec
+     ,width_ratios = [0.001,0.999]
+     ,wspace = 0.15
+     )
+    plt.Subplot(fig,blah)
+    fig.add_subplot(blah,frameon=False)
+    plt.tick_params(labelcolor='none', top=False, bottom=False, left=False, right=False)
+    plt.ylabel('Magnetic Field (pT)')
+    n_plot = 3
+    # for sensor in input_dict['calculated field']:
+    # for axis in input_dict['calculated field'][sensor]:
+    #         n_plot +=1
+
+    # cmap = plt.get_cmap('tab10')
+    # colors = [cmap(i_col) for i_col in np.linspace(0, 1, n_plot)]
+
+    data_plots_specs = gridspec.GridSpecFromSubplotSpec(nrows=n_plot,ncols=1
+     ,subplot_spec=data_plots_space_spec
+     ,hspace = 0
+     )
+    i_plot = n_plot-1
+    theta_plot = input_dict['theta']/180
+
+    # sensor_colors = plt.get_cmap('tab10',len(input_dict['calculated field'].keys()))
+    sensor_colors = plt.get_cmap('Set1')
+    
+    for axis in ['X','Y','Z']:
+        if i_plot == n_plot-1:
+            ax_bottom = plt.Subplot(fig,data_plots_specs[i_plot])
+            ax_i = ax_bottom
+        else:
+            ax_i = plt.Subplot(fig,data_plots_specs[i_plot]
+            ,sharex = ax_bottom
+            )
+            plt.setp(ax_i.get_xticklabels(), visible=False)
+        fig.add_subplot(ax_i)
+        # h = ax_i.plot(theta_plot,input_dict['measured field']['B'][sensor][axis]
+        # # ,color = colors[i_plot]
+        # ,color = "C{}".format(i_plot)
+        # # ,alpha = 0.8
+        # ,linewidth = 2
+        # )
+        icol = 0
+        for sensor in input_dict['calculated field']:
+            ax_i.plot(theta_plot,input_dict['calculated field'][sensor][axis]
+                # ,color = h[-1].get_color()
+                ,color = sensor_colors(icol)
+                ,linewidth = 3
+                ,alpha = 0.6
+                # ,linestyle = '--'
+                )
+            if 'doubleplot' in plot_settings:
+                if plot_settings['doubleplot']:
+                    # ax_i.plot(theta_plot+2,input_dict['measured field']['B'][sensor][axis]
+                    # # ,color = colors[i_plot]
+                    # ,color = "C{}".format(i_plot)
+                    # # ,alpha = 0.8
+                    # ,linewidth = 2
+                    # )
+
+                    ax_i.plot(theta_plot+2,input_dict['calculated field'][sensor][axis]
+                    # ,color = h[-1].get_color()
+                    ,color = sensor_colors(icol)
+                    ,linewidth = 3
+                    ,alpha = 0.6
+                    # ,linestyle = '--'
+                    )
+            icol +=1
+
+            
+
+        ax_i.set_ylabel('{}'.format(axis))
+        plt.grid()
+        # if i_plot!=3:
+        #      plt.setp(ax_data_plots[i_plot].get_xticklabels(), visible=False)
+        i_plot-=1
+
+    # lgd = pltax.legend(bbox_to_anchor=(1.35, 1.3))
+    # pltax.legend(loc='best')
+    # pltax.grid()
+    # xmin,xmax = pltax.get_xlim()
+    # ymin,ymax = pltax.get_ylim()
+    # xloc = xmin - 1*(xmax-xmin)
+    # yloc = ymax + 0.05*(ymax-ymin)
+    # pltax.text(xloc,yloc,textstring)
+    ax_bottom.set_xlabel('$\\theta/\pi$')
+    # pltax.set_ylabel('Magnetic field (pT)')
+
 
 #..........................................................................
 #``````````````````````````````````````````````````````````````````````````
@@ -813,7 +1172,7 @@ def PlotFields(input_dict,fig,data_spec,plot_settings):
     # xloc = xmin - 1*(xmax-xmin)
     # yloc = ymax + 0.05*(ymax-ymin)
     # pltax.text(xloc,yloc,textstring)
-    ax_bottom.set_xlabel('$\\theta$ (units of $\pi$)')
+    ax_bottom.set_xlabel('$\\theta/\pi$')
     # pltax.set_ylabel('Magnetic field (pT)')
 
 #..........................................................................
@@ -828,43 +1187,47 @@ def CheckValid(source_location_in,rotor_dimensions):
     source_location = GetPolar(source_location_in)
 
     if len(source_location['location'])>2: # In cases when z is being used
-        if ((2*npfuncs['abs'](source_location['location'][2])<\
+        if ((2*npfuncs['abs'](source_location['location'][2])<=\
          rotor_dimensions['height']) and
-         (source_location['location'][0]<rotor_dimensions['outer_radius'])and
-         (source_location['location'][0]>rotor_dimensions['hole_radius'])):
+         (source_location['location'][0]<=rotor_dimensions['outer_radius'])and
+         (source_location['location'][0]>=rotor_dimensions['hole_radius'])):
             # This now means the thing is inside the rotor boundary
             valid_basic = 1
-#             print('Source matches z and r')
+            # print('Source matches z and r')
 #            print(valid)
     else: # In cases when z is not being used
-        if source_location['location'][0]<rotor_dimensions['outer_radius']:
+        if source_location['location'][0]<=rotor_dimensions['outer_radius']:
             valid_basic = 1
-#             print('no z given, source matches r')
+            # print('no z given, source matches r')
 #     print(source_location)
     # remove negative r
     if source_location['location'][0]<0:
         valid_basic  = 0
-#         print('r negative')
+        # print('r negative')
     # remove theta outside 2pi
     if source_location['location'][1]>360:
         valid_basic = 0
-#         print('theta greater than $2\pi$')
+        # print('theta greater than $2\pi$')
     if source_location['location'][1]<0:
-#         print('theta negative')
+        # print('theta negative')
         valid_basic = 0
 
-#     print('Basic validity  = %0.0f'%(valid_basic))
+    # print('Basic validity  = %0.0f'%(valid_basic))
     # Now let's check if the source is in the rotor's anulus or bar
     if valid_basic:
         # Check if its in the anulus
-        if source_location['location'][0]>rotor_dimensions['inner_radius']:
+        # print(source_location['location'][0])
+        # print(rotor_dimensions['inner_radius'])
+        if source_location['location'][0]>=rotor_dimensions['inner_radius']:
             valid = 1
+            # print("inside anulus")
         # If not, check if its in the bar
         elif npfuncs['abs'](2*source_location['location'][0]*\
-         npfuncs['sindeg'](source_location['location'][1]))<\
+         npfuncs['sindeg'](source_location['location'][1]))<=\
          rotor_dimensions['bar_width']:
             valid = 1
-#     print('Final validity  = %0.0f'%(valid))
+    #         print("in the bar")
+    # print('Final validity  = %0.0f'%(valid))
     return valid
 
 #..........................................................................

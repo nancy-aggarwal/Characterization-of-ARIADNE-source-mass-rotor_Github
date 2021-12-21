@@ -1,12 +1,6 @@
-# To add a new cell, type '# %%'
-# To add a new markdown cell, type '# %% [markdown]'
-# %%
-# from IPython import get_ipython
-
 # %%
 from scipy.io import loadmat
 import numpy as np
-from scipy.optimize import minimize
 from datetime import datetime
 now = datetime.now
 
@@ -18,21 +12,20 @@ import os
 import pickle
 # import json
 
-
 # %%
 SaveData = True
 SaveDataFigs = False
 
 dpiN = 700
-dark_plots = False
+dark_plots = True
 if dark_plots:
     dark='darkbg/'
     q = mpl.rc_params_from_file('matplotlibrc_dark')
 else:
     dark = 'whitebg/'
     mpl.rcParams.update(mpl.rcParamsDefault)
-SavePlotDir_Exp2  = '../Results/Test/'+dark+'ProcessedData/'
-SaveDataDir_Exp2  = '../Results/Test/'+'Pickles/'
+SavePlotDir_Exp2  = '../Results/2021-12-18/Exp2/'+dark+'ProcessedData/'
+SaveDataDir_Exp2  = '../Results/2021-12-18/Exp2/'+'Pickles/'
 if SaveDataFigs:
     if not os.path.exists(SavePlotDir_Exp2):
         os.makedirs(SavePlotDir_Exp2)
@@ -44,11 +37,10 @@ if SaveData:
 # %%
 
 
-
 # %%
 if dark_plots:
     mpl.rcParams.update(q)
-    # get_ipython().run_line_magic('matplotlib', 'inline')
+    # %matplotlib inline
     mpl.rcParams.update({
                     #'legend.borderpad': 0.3,
                     #'legend.borderaxespad': 0.25,
@@ -62,7 +54,7 @@ if dark_plots:
                     })
 else:
     # mpl.rcParams.update(mpl.rcParamsDefault)
-    # get_ipython().run_line_magic('matplotlib', 'inline')
+    # %matplotlib inline
     font = {
        'weight' : 'normal',
        'size'   : 14,
@@ -73,7 +65,6 @@ else:
         # 'font.family':'Times New Roman'
     # })
 #     mpl.rcParams.update({'font.family':'serif'})
-
 
 # %%
 def lighten_color(color, amount=0.5):
@@ -105,6 +96,7 @@ freq_for_noise_analysis = 5
 
 # %% [markdown]
 # ## Experiment 2
+
 # %% [markdown]
 # ### Load data ###
 
@@ -239,7 +231,6 @@ plt.suptitle('Field (pT) and positions of cut')
 if SaveDataFigs:
     plt.savefig(SavePlotDir_Exp2+'Exp2_original_data_cut_place_old.png',bbox_inches='tight',dpi = dpiN)
 
-
 # %%
 fig, splist = plt.subplots(nrows=5,ncols=1,sharex=True)
 
@@ -290,6 +281,7 @@ if SaveDataFigs:
 
 # %% [markdown]
 #  ### Error measured by taking data without rotation (0 Hz) ###
+
 # %% [markdown]
 # ### Cut data ###
 
@@ -309,7 +301,6 @@ Exp2_data_cut['AV']['X']={}
 Exp2_data_cut['AV']['Y']={}
 Exp2_data_cut['AV']['Y wrap']={}
 Exp2_data_cut['AV']['X wrap']={}
-
 
 # %%
 last_time = 0
@@ -390,7 +381,7 @@ sp1.set_ylabel('AW Y (pT)')
 sp2.set_ylabel('AW Z (pT)')
 sp3.set_ylabel('AV Y (pT)')
 sp4.set_ylabel('AV X (pT)')
-sp4.set_xlabel('$\\theta$ (units of $\pi$)')
+sp4.set_xlabel('$\\theta/\pi$')
 sp1.grid()
 sp2.grid()
 sp3.grid()
@@ -435,7 +426,7 @@ sp1.set_ylabel('AW Y (pT)')
 sp2.set_ylabel('AW Z (pT)')
 sp3.set_ylabel('AV Y (pT)')
 sp4.set_ylabel('AV X (pT)')
-sp4.set_xlabel('$\\theta$ (units of $\pi$)')
+sp4.set_xlabel('$\\theta/\pi$')
 sp1.grid()
 sp2.grid()
 sp3.grid()
@@ -470,7 +461,7 @@ sp1.set_ylabel('AW Y')
 sp2.set_ylabel('AW Z')
 sp3.set_ylabel('AV Y')
 sp4.set_ylabel('AV X')
-sp4.set_xlabel('$\\theta$ (units of $\pi$)')
+sp4.set_xlabel('$\\theta/\pi$')
 sp1.grid()
 sp2.grid()
 sp3.grid()
@@ -478,7 +469,6 @@ sp4.grid()
 fig.legend(loc='center right')
 if SaveDataFigs:
     plt.savefig(SavePlotDir_Exp2+'Exp2_cut_data_theta_wrap.png',bbox_inches='tight',dpi = dpiN)
-
 
 # %%
 fig,[sp1,sp2,sp3,sp4]=plt.subplots(nrows=4,ncols=1,sharex=True,figsize=(7,6))
@@ -504,10 +494,14 @@ if SaveDataFigs:
 #     sp1.set_xlim(59,85)
 #     plt.savefig(SavePlotDir_Exp2+'Exp2_cut_data_time_zoom.png',bbox_inches='tight',dpi = dpiN)
 
+
+
 # %% [markdown]
 # # Error Analysis #
+
 # %% [markdown]
 #  ### Error measured by taking data without rotation (0 Hz) ###
+
 # %% [markdown]
 # ## Standard deviation of cut data  ##
 
@@ -516,6 +510,7 @@ Exp2_data_cut['AW']['Y'][freq_for_noise_analysis]['sigma'] = np.std(Exp2_data_cu
 Exp2_data_cut['AW']['Z'][freq_for_noise_analysis]['sigma'] = np.std(Exp2_data_cut['AW']['Z'][0]['B'])
 Exp2_data_cut['AV']['Y'][freq_for_noise_analysis]['sigma'] = np.std(Exp2_data_cut['AV']['Y'][0]['B'])
 Exp2_data_cut['AV']['X'][freq_for_noise_analysis]['sigma'] = np.std(Exp2_data_cut['AV']['X'][0]['B'])
+
 
 # %% [markdown]
 # ## Plot cut data and its standard deviation as a function of time 
@@ -556,6 +551,7 @@ plt.suptitle('0 Hz data raw (pT)')
 if SaveDataFigs:
     plt.savefig(SavePlotDir_Exp2+'Exp2_noise_raw_data.png',bbox_inches='tight',dpi = dpiN)
 
+
 # %% [markdown]
 # ## Plot cut data and its standard deviation as a function of theta
 
@@ -589,12 +585,13 @@ splist[3].legend(loc = [1,0])
 
 
 
-plt.xlabel('$\\theta (\pi)$')
+plt.xlabel('$\\theta/\pi$')
 # plt.ylabel('Field (pT)')
 
 plt.suptitle('0 Hz data raw (pT)')
 if SaveDataFigs:
     plt.savefig(SavePlotDir_Exp2+'Exp2_noise_raw_data_theta.png',bbox_inches='tight',dpi = dpiN)
+
 
 # %% [markdown]
 # ## Cut data and its standard deviation as a function of theta (wrapped) ##
@@ -636,12 +633,13 @@ splist[3].legend(loc = [1,0])
 
 
 
-plt.xlabel('$\\theta (\pi)$')
+plt.xlabel('$\\theta/\pi$')
 # plt.ylabel('Field (pT)')
 
 plt.suptitle('0 Hz data raw (pT)')
 if SaveDataFigs:
     plt.savefig(SavePlotDir_Exp2+'Exp2_noise_raw_data_theta_wrap.png',bbox_inches='tight',dpi = dpiN)
+
 
 # %% [markdown]
 # ## Standard deviation over one cycle without averaging ##
@@ -649,7 +647,6 @@ if SaveDataFigs:
 # %%
 idx_2pi = np.argmin(np.abs(Exp2_data_cut['theta'][0] - 360))
 idx_0pi = np.argmin(np.abs(Exp2_data_cut['theta'][0] - 0))
-
 
 # %%
 fig, splist = plt.subplots(nrows=4,ncols=1,sharex=True)
@@ -680,12 +677,14 @@ splist[2].legend(loc = [1,0])
 splist[3].legend(loc = [1,0])
 
 
-plt.xlabel('$\\theta (\pi)$')
+plt.xlabel('$\\theta/\pi$')
 # plt.ylabel('Field (pT)')
 
 plt.suptitle('0 Hz data raw one cycle (pT)')
 if SaveDataFigs:
     plt.savefig(SavePlotDir_Exp2+'Exp2_noise_raw_data_theta_cut_noavg.png',bbox_inches='tight',dpi = dpiN)
+
+
 
 
 # %% [markdown]
@@ -765,6 +764,7 @@ for nu in Exp2_Freq:
 
 
 
+
 # %%
 fig, [sp1,sp2,sp3,sp4] = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=(7,6))
 
@@ -801,11 +801,10 @@ sp1.set_ylabel('AW Y')
 sp2.set_ylabel('AW Z')
 sp3.set_ylabel('AV Y')
 sp4.set_ylabel('AV X')
-sp4.set_xlabel('$\\theta$ ($\pi$)')
+sp4.set_xlabel('$\\theta/\pi$')
 plt.suptitle('Data average and wrapped')
 if SaveDataFigs:
     plt.savefig(SavePlotDir_Exp2+'Exp2_cut_data_avg.png',bbox_inches='tight',dpi = dpiN)
-
 
 # %%
 fig, [sp1,sp2,sp3,sp4] = plt.subplots(nrows=4,ncols=1,sharex=True,figsize=(7,6))
@@ -844,7 +843,7 @@ sp1.set_ylabel('AW Y')
 sp2.set_ylabel('AW Z')
 sp3.set_ylabel('AV Y')
 sp4.set_ylabel('AV X')
-sp4.set_xlabel('$\\theta$ ($\pi$)')
+sp4.set_xlabel('$\\theta/\pi$')
 plt.suptitle('Data average and original')
 if SaveDataFigs:
     plt.savefig(SavePlotDir_Exp2+'Exp2_cut_data_avg_compare_to_full_set.png',bbox_inches='tight',dpi = dpiN)
@@ -891,12 +890,13 @@ splist[3].legend(loc = [1,0])
 
 
 
-plt.xlabel('$\\theta (\pi)$')
+plt.xlabel('$\\theta/\pi$')
 # plt.ylabel('Field (pT)')
 
 plt.suptitle('0 Hz data after averaging (pT)')
 if SaveDataFigs:
     plt.savefig(SavePlotDir_Exp2+'Exp2_noise_raw_data_theta_avg.png',bbox_inches='tight',dpi = dpiN)
+
 
 # %% [markdown]
 # ## Save to file
@@ -905,7 +905,6 @@ if SaveDataFigs:
 if SaveData:
     with open(SaveDataDir_Exp2+'Exp2_cut_averaged_data.pk','wb') as file_obj:
         pickle.dump(Exp2_data_cut_avg,file_obj,protocol=pickle.HIGHEST_PROTOCOL)
-
 
 # %%
 

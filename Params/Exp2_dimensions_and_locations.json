@@ -1,7 +1,12 @@
 {
 "D_wheel_sensor":8,
-"rotor_dims":{"height": 10, "outer_radius": 18.9, "inner_radius": 15, "hole_radius": 2.5, "bar_width": 7},
+"D_wheel_sample":0.2,
+"rotor_dims":{"height": 10, "outer_radius": 18.9992, "inner_radius": 15.0114, "hole_radius": 2.49936, "bar_width": 7.01},
 "AW_location":{"coordinate":"cartesian",
     "location":"np.array([0.5*(rotor_dims['outer_radius']+rotor_dims['inner_radius']),0,rotor_dims['height']/2+D_wheel_sensor])"},
-"AV_location":{"coordinate":"cartesian","location":"np.array([-rotor_dims['outer_radius']-D_wheel_sensor,0,0])"}
+"AV_location":{"coordinate":"cartesian","location":"np.array([-rotor_dims['outer_radius']-D_wheel_sensor,0,0])"},
+"3He locations":{"1":{"coordinate":"cartesian","location":"np.array([0,-rotor_dims['outer_radius']-D_wheel_sample,0])"},
+"2":{"coordinate":"cartesian","location":"np.array([0,-rotor_dims['outer_radius']-D_wheel_sample + 0.07,0])"},
+"3":{"coordinate":"cartesian","location":"np.array([0,-rotor_dims['outer_radius']-D_wheel_sample-0.07,-1.2])"},
+"4":{"coordinate":"cartesian","location":"np.array([0,-rotor_dims['outer_radius']-D_wheel_sample,1])"}}
 }

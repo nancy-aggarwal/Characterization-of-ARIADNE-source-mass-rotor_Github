@@ -1,6 +1,7 @@
 # %%
 from scipy.io import loadmat
 import numpy as np
+from scipy.optimize import minimize
 from datetime import datetime
 now = datetime.now
 
@@ -9,16 +10,15 @@ import matplotlib as mpl
 import time
 import os
 import pickle
+from copy import deepcopy
 
 import json
-
-from copy import deepcopy
 
 from scipy.stats import chi2
 
 # %%
-SaveFitFigs = True
-# SaveFitData = True
+SaveFitFigs = False
+SaveFitData = False
 dpiN = 1000
 dark_plots = True
 n_sig = 8
@@ -30,14 +30,14 @@ else:
     dark = 'whitebg/'
     mpl.rcParams.update(mpl.rcParamsDefault)
 SavePlotDir_Exp2  = '../Results/2021-12-20/Exp2/'+dark+'FittingFigs/'
-# SaveDataDir_Exp2  = '../Results/2021-11-16/Exp2/'+'Pickles/'
-LoadDataDir_Exp2 = '../Results/2021-12-20/Exp2/'+'Pickles/'#SaveDataDir_Exp2 # The other notebook stored the pickle in the same folder
+SaveDataDir_Exp2  = '../Results/2021-12-20/Exp2/'+'Pickles/'
+LoadDataDir_Exp2 = SaveDataDir_Exp2 # The other notebook stored the pickle in the same folder
 if SaveFitFigs:
     if not os.path.exists(SavePlotDir_Exp2):
         os.makedirs(SavePlotDir_Exp2)
-# if SaveFitData:
-#     if not os.path.exists(SaveDataDir_Exp2):
-#         os.makedirs(SaveDataDir_Exp2)
+if SaveFitData:
+    if not os.path.exists(SaveDataDir_Exp2):
+        os.makedirs(SaveDataDir_Exp2)
 
 
 # %%
@@ -77,6 +77,7 @@ from B_calc_script import signif
 
 # %%
 
+
 # %% [markdown]
 # # Load data
 
@@ -91,25 +92,17 @@ with open(Exp2_data_filename,'rb') as file_obj:
 # ## Load parameters ##
 
 # %%
-
-nu = 5
-
-
-# %%
 with open('../Params/Exp2_dimensions_and_locations.json', 'r') as fp:
     params_dims_locs = json.load(fp)
 
 # %%
 params_dims_locs
-# print(params_dims_locs)
-
 
 # %%
 rtr_dims = deepcopy(params_dims_locs['rotor_dims'])
 
 for key in rtr_dims:
     rtr_dims[key] = signif(rtr_dims[key],n_sig)
-
 
 # %%
 Exp2_AW_sensor_loc =params_dims_locs['AW_location']
@@ -120,13 +113,6 @@ Exp2_AW_sensor_loc['location'] = eval(string_to_parse.replace('rotor_dims','rtr_
 Exp2_AV_sensor_loc =params_dims_locs['AV_location']
 string_to_parse = params_dims_locs['AV_location']['location']
 Exp2_AV_sensor_loc['location'] = eval(string_to_parse.replace('rotor_dims','rtr_dims').replace('D_wheel_sensor','params_dims_locs[\'D_wheel_sensor\']'))
-
-# %%
-# with open('../Params/'+'FittedDipoles_{}Hz_'.format(nu)+'3sources.pk','rb') as filehandle:
-#     Exp2_Opt_Params_3_sources = pickle.load(filehandle)
-
-with open('../Params/'+'FittedDipoles_{}Hz_'.format(nu)+'3sources.json','r',encoding = 'utf-8') as filehandle:
-    Exp2_Opt_Params_3_sources = json.loads(filehandle.read())
 
 # %% [markdown]
 # # Calculate fitted field, chi, and plot #
@@ -143,6 +129,8 @@ Exp2_settings = {
 }
 
 # %%
+
+nu = 5
 
 Exp2_data = {
     'theta':np.concatenate([Exp2_data_cut['theta avg'][nu]
@@ -183,11 +171,20 @@ Exp2_data = {
 
 # %%
 # nowtext = now().strftime("%Y%m%d%H%M")
+nowtext = '3sources'
+fitplotfilename = SavePlotDir_Exp2+'FittedData_{}Hz_'.format(nu)+nowtext+'.png'
+fitdatafilename = SaveDataDir_Exp2+'FittedData_{}Hz_'.format(nu)+nowtext+'.pk'
 
-nowtext = '_15font'
-fitplotfilename = SavePlotDir_Exp2+'FittedData_{}Hz'.format(nu)+nowtext+'.png'
-# fitdatafilename = SaveDataDir_Exp2+'FittedData_{}Hz'.format(nu)+nowtext+'.pk'
-
+Exp2_plot_settings = {
+    'plot':True,
+#     'memo':'{} Hz (AV X&Y inverted)'.format(nu),
+    'memo':'{} Hz anticlockwise'.format(nu),
+    'saveplot':SaveFitFigs,
+    'figname':fitplotfilename,
+    'dpi' : dpiN,
+    'doubleplot':False,
+    'print sigfigs':n_print_sigfigs
+}
 
 Exp2_optimization_settings = {
     'print':True,
@@ -201,59 +198,79 @@ Exp2_optimization_settings = {
     'optimize bar location':True,
     'significant figures':n_sig
 }
-
-Exp2_plot_settings = {
-    'plot':True,
-#     'memo':'{} Hz (AV X&Y inverted)'.format(nu),
-    'memo':'{} Hz'.format(nu),
-    'doubleplot':False,
-    'saveplot':SaveFitFigs,
-    'dpi':dpiN,
-    'figname':fitplotfilename,
-    'print sigfigs':n_print_sigfigs
+Exp2_save_settings ={
+    'save fit data':False,
 }
-# Exp2_save_settings ={
-#     'save fit data':SaveFitData,
-#     'fit data filename':fitdatafilename
-# }
-
 Exp2_all_settings = {
     'experiment settings':Exp2_settings,
     'data':Exp2_data,
     'optimization settings':Exp2_optimization_settings,
     'plot settings':Exp2_plot_settings,
-    # 'save settings':Exp2_save_settings
+    'save settings':Exp2_save_settings
     
 }
 
-Exp2_Opt_Params = Exp2_Opt_Params_3_sources
-E_opt = TopFunctionOneExpAnyFreq(Exp2_Opt_Params,Exp2_all_settings)
+Exp2_Opt_Params_3_sources = [ 13.36 ,   8.91 ,   4.547,  13.91,  -18.57,  -21.06,   15.02 , 274.1,    -4.992,
+  13.01 , -39.84,   21.95,   15.15,   93.5,    -3.913,  38.03,  -36.3  , -33.49,
+ -34.93  , 24.43,    7.136, -34.81 ,  93.56 ]
+
+chi = TopFunctionOneExpAnyFreq(Exp2_Opt_Params_3_sources,Exp2_all_settings)
 
 # %%
 fitplotfilename
 
-# %% [markdown]
-# # Get $\chi^2$ from Error Function ##
+# %%
+initial = []
+initial.append(Exp2_Opt_Params_3_sources)
+
+for ip in range(len(Exp2_Opt_Params_3_sources)):
+#     print(ip)
+    arr_dum = Exp2_Opt_Params_3_sources.copy()
+    arr_dum[ip] = Exp2_Opt_Params_3_sources[ip]*1.1
+#     print(arr_dum)
+    initial.append(arr_dum)
 
 # %%
-N_points = 4*len(Exp2_data_cut['theta avg'][nu])
-N_params = len(Exp2_Opt_Params)
+
+
 
 # %%
-chi2_opt = E_opt*N_points*N_points
-dof = N_points-N_params
+Exp2_all_settings['plot settings']['plot'] = 0
+Exp2_all_settings['optimization settings']['print'] = 0
+# opt_res_Exp2 = minimize(TopFunctionOneExpAnyFreq,Exp2_Opt_Params,Exp2_all_settings,
+#                         method = 'Nelder-Mead',options = {'maxfev': 10000,'maxiter': 10000,'adaptive':True,'fatol':.01})
+# opt_res_Exp2 = minimize(TopFunctionOneExpAnyFreq,Exp2_Opt_Params,Exp2_all_settings,
+#                         method = 'Powell',options = {'maxfev': 1000,'maxiter': 1000,'ftol':1})
+opt_res_Exp2 = minimize(TopFunctionOneExpAnyFreq,Exp2_Opt_Params_3_sources,Exp2_all_settings,
+                        method = 'Nelder-Mead',options = {'maxfev': 30000,'maxiter': 20000,'fatol':1e-2,'xatol' : 1e-3
+                                                         ,'initial_simplex':initial
+                                                         })
 
 # %%
-sf_opt = chi2.sf(chi2_opt,dof)
+Exp2_all_settings['plot settings']['plot'] = True
+Exp2_plot_settings['saveplot']=SaveFitFigs
+Exp2_all_settings['optimization settings']['print'] = 1
+Exp2_all_settings['save settings']['save fit data'] = SaveFitData
+Exp2_all_settings['save settings']['fit data filename'] = fitdatafilename
+print(opt_res_Exp2['x'])
+
+# nowtext = now().strftime("%Y%m%d%H%M")
+Exp2_plot_settings['figname']=SavePlotDir_Exp2+'FittedData_{}Hz'.format(nu)+nowtext+'optimized'+'.png'
+chi_opt = TopFunctionOneExpAnyFreq(opt_res_Exp2['x'],Exp2_all_settings)
 
 # %%
-print('Error function value is {}'.format(E_opt))
-print('Number of points is ',N_points)
-print("$\chi^2$ is {}".format(chi2_opt))
-print('Number of parameters is ',N_params)
-print('degrees of freedom is ',dof)
-print("$\chi^2$/dof is {}".format(chi2_opt/dof))
-print("Survival fraction is {}".format(sf_opt))
+data_to_write = opt_res_Exp2['x']
 
 # %%
+data_to_write
+
+# %%
+if SaveFitData:
+    with open(SaveDataDir_Exp2+'FittedDipoles_{}Hz_'.format(nu)+nowtext+'.pk'
+,'wb') as file_obj:
+        pickle.dump(data_to_write,file_obj)
+
+# %%
+
+
 
