@@ -632,10 +632,10 @@ def PlotCalcField(calculation_dict,data_dict,plot_settings):
     # fig.text(0.4,-0.3,textstring, 
     #     bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
     if plot_settings['print sigfigs']<3:
-        fig.text(0.57,-0.17,textstringD, 
+        fig.text(0.4,-0.3,textstringD, 
             bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
     else:
-            fig.text(0.46,-0.3,textstringD, 
+            fig.text(0.4,-0.3,textstringD, 
                 bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
     # fig.text(0.4,-0.32,textstringD, 
     #     bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
@@ -705,12 +705,12 @@ def PlotEverything(optimization_dict,data_dict,plot_settings):
     # fig.text(0.4,-0.3,textstring, 
     #     bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
     if plot_settings['print sigfigs']<3:
-        fig.text(0.41,-0.17,textstringE, 
+        fig.text(0.37,-0.17,textstringE, 
             bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
-        fig.text(0.57,-0.17,textstringD, 
+        fig.text(0.5,-0.3,textstringD, 
             bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
     else:
-            fig.text(0.37,-0.17,textstringE, 
+            fig.text(0.35,-0.17,textstringE, 
                 bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
             fig.text(0.46,-0.3,textstringD, 
                 bbox=dict(facecolor='none', edgecolor='gray', boxstyle='round'))
@@ -976,7 +976,7 @@ def PlotSetupAndMakeLocation(input_dict):
         i_col +=1
 
 
-    front_view.legend(loc='upper left',bbox_to_anchor=(-0.5,-0.155),ncol=2)
+    front_view.legend(loc='upper left',bbox_to_anchor=(-0.65,-0.2),ncol=2)
     front_view.axis('equal')
     side_view.axis('equal')
 

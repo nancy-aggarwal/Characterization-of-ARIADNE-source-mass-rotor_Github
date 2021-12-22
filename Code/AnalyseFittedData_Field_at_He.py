@@ -23,14 +23,14 @@ SaveFitFigs = True
 dpiN = 1000
 dark_plots = True
 n_sig = 8
-n_print_sigfigs = 2
+n_print_sigfigs = 3
 if dark_plots:
     dark='darkbg/'
     q = mpl.rc_params_from_file('matplotlibrc_dark')
 else:
     dark = 'whitebg/'
     mpl.rcParams.update(mpl.rcParamsDefault)
-SavePlotDir_Exp2  = '../Results/2021-12-20/Exp2/'+dark+'FittingFigs/'
+SavePlotDir_Exp2  = '../Results/2021-12-21_threesigfigs/Exp2/'+dark+'FittingFigs/'
 # SaveDataDir_Exp2  = '../Results/2021-11-16/Exp2/'+'Pickles/'
 LoadDataDir_Exp2 = '../Results/2021-12-20/Exp2/Pickles/'#SaveDataDir_Exp2 # The other notebook stored the pickle in the same folder
 if SaveFitFigs:

@@ -29,7 +29,7 @@ if dark_plots:
 else:
     dark = 'whitebg/'
     mpl.rcParams.update(mpl.rcParamsDefault)
-SavePlotDir_Exp2  = '../Results/2021-12-20/Exp2/'+dark+'FittingFigs/'
+SavePlotDir_Exp2  = '../Results/2021-12-21_twosigfigs/Exp2/'+dark+'FittingFigs/'
 SaveDataDir_Exp2  = '../Results/2021-12-20/Exp2/'+'Pickles/'
 LoadDataDir_Exp2 = SaveDataDir_Exp2 # The other notebook stored the pickle in the same folder
 if SaveFitFigs:
@@ -210,9 +210,12 @@ Exp2_all_settings = {
     
 }
 
-Exp2_Opt_Params_3_sources = [ 13.36 ,   8.91 ,   4.547,  13.91,  -18.57,  -21.06,   15.02 , 274.1,    -4.992,
-  13.01 , -39.84,   21.95,   15.15,   93.5,    -3.913,  38.03,  -36.3  , -33.49,
- -34.93  , 24.43,    7.136, -34.81 ,  93.56 ]
+Exp2_Opt_Params_3_sources = [ 13.34880956,   8.93204632,   4.54077966,  13.86327989,
+       -18.5934633 , -21.08123588,  15.02431798, 274.11433097,
+        -4.89142693,  12.91915001, -39.7559461 ,  21.92261841,
+        15.14663565,  93.49895702,  -3.9010842 ,  37.87557816,
+       -30.16727982, -33.31713104, -34.93498927,  24.45478623,
+         7.14475312, -34.82079508,  93.56467221]
 
 chi = TopFunctionOneExpAnyFreq(Exp2_Opt_Params_3_sources,Exp2_all_settings)
 
@@ -266,9 +269,11 @@ data_to_write
 
 # %%
 if SaveFitData:
-    with open(SaveDataDir_Exp2+'FittedDipoles_{}Hz_'.format(nu)+nowtext+'.pk'
-,'wb') as file_obj:
+    with open(SaveDataDir_Exp2+'FittedDipoles_{}Hz_'.format(nu)+nowtext+'.pk','wb') as file_obj:
         pickle.dump(data_to_write,file_obj)
+    with open(SaveDataDir_Exp2+'FittedDipoles_{}Hz_'.format(nu)+nowtext+'.json','w',encoding = 'utf-8') as file_obj:
+        json.dump(data_to_write.tolist(),file_obj)
+    
 
 # %%
 
